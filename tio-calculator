@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WFO Calculator</title>
+  <style>
+    :root {
+      --bg: #f6f7f9;
+      --surface: #ffffff;
+      --text: #1f2328;
+      --muted: #57606a;
+      --border: #d0d7de;
+      --focus: #0969da;
+      --accent: #0f766e;
+      --danger: #b00020;
+      --radius: 10px;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0d1117;
+        --surface: #161b22;
+        --text: #e6edf3;
+        --muted: #9da7b3;
+        --border: #30363d;
+        --focus: #2f81f7;
+        --accent: #2ea043;
+        --danger: #ff7b72;
+      }
+    }
+    body {
+      font-family: "Inter", "Segoe UI", Roboto, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 24px 16px;
+      line-height: 1.4;
+    }
+    .app {
+      max-width: 760px;
+      margin: 0 auto;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+    h1 { margin: 0 0 6px; font-size: 1.35rem; }
+    p { margin: 0 0 16px; color: var(--muted); }
+    .section-title {
+      margin: 0 0 10px;
+      font-size: 0.95rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    label { display: block; font-weight: 600; margin-bottom: 4px; font-size: 0.92rem; }
+    input {
+      width: 100%;
+      padding: 9px 10px;
+      box-sizing: border-box;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--text);
+    }
+    input:focus {
+      outline: 2px solid color-mix(in srgb, var(--focus) 40%, transparent);
+      border-color: var(--focus);
+      outline-offset: 1px;
+    }
+    input[type="month"]::-webkit-calendar-picker-indicator {
+      opacity: 1;
+      filter: invert(1) brightness(2);
+    }
+    .full { grid-column: 1 / -1; }
+    .actions { display: flex; gap: 8px; margin-top: 10px; }
+    button {
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--focus);
+      background: var(--focus);
+      color: #fff;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button.secondary {
+      border-color: var(--border);
+      background: transparent;
+      color: var(--text);
+      font-weight: 500;
+    }
+    .error { color: var(--danger); margin-top: 10px; white-space: pre-wrap; font-weight: 600; }
+    .result {
+      margin-top: 14px;
+      padding: 14px;
+      background: color-mix(in srgb, var(--surface) 90%, var(--bg));
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    .result-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px 14px;
+    }
+    .metric { border-top: 1px solid var(--border); padding-top: 8px; }
+    .metric:first-child, .metric:nth-child(2) { border-top: 0; padding-top: 0; }
+    .metric-title { font-size: 0.85rem; color: var(--muted); margin-bottom: 2px; }
+    .metric-value { font-size: 1.15rem; font-weight: 700; }
+    .metric-pending .metric-value { color: var(--accent); }
+    .small { font-size: 12px; color: var(--muted); margin-top: 8px; }
+    .signature { text-align: center; margin-top: 14px; }
+    @media (max-width: 640px) {
+      .grid, .result-grid { grid-template-columns: 1fr; }
+      .app { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+  <h1>WFO Calculator</h1>
+
+  <div class="section-title">Inputs</div>
+  <form id="calcForm">
+    <div class="grid" role="group" aria-label="Attendance inputs">
+      <div>
+        <label for="monthYear">Month / Year</label>
+        <input id="monthYear" name="monthYear" type="month" required />
+      </div>
+      <div>
+        <label for="workingDays">Weekdays(select month for auto calc)</label>
+        <input id="workingDays" name="workingDays" type="number" step="0.5" min="0" value="23" required />
+      </div>
+      <div>
+        <label for="declaredHolidays">National/Regional Holidays</label>
+        <input id="declaredHolidays" name="declaredHolidays" type="number" step="0.5" min="0" value="0" required />
+      </div>
+      <div>
+        <label for="leavesApplied">Leaves applied</label>
+        <input id="leavesApplied" name="leavesApplied" type="number" step="0.5" min="0" value="0" required />
+      </div>
+      <div>
+        <label for="btoExemptions">BTO exemptions</label>
+        <input id="btoExemptions" name="btoExemptions" type="number" step="0.5" min="0" value="0" required />
+      </div>
+      <div>
+        <label for="officeDone">Work from office completed</label>
+        <input id="officeDone" name="officeDone" type="number" step="0.5" min="0" value="0" required />
+      </div>
+      <div class="full">
+        <label for="attendanceRate">Required attendance rate (0.6 or 60)</label>
+        <input id="attendanceRate" name="attendanceRate" type="number" step="0.01" min="0" value="0.6" required />
+      </div>
+    </div>
+    <div class="actions">
+      <button type="submit">Calculate</button>
+      <button id="recalcWorkingDays" class="secondary" type="button">Recalculate weekdays</button>
+    </div>
+  </form>
+
+  <div id="error" class="error" role="alert"></div>
+  <div id="result" class="result" hidden>
+    <div class="section-title">Results</div>
+    <div class="result-grid">
+      <div class="metric">
+        <div class="metric-title">Effective working days</div>
+        <div class="metric-value" id="effectiveDays"></div>
+      </div>
+      <div class="metric">
+        <div class="metric-title">Required office days</div>
+        <div class="metric-value" id="officeDays"></div>
+      </div>
+      <div class="metric">
+        <div class="metric-title">Raw required office days</div>
+        <div class="metric-value" id="rawOfficeDays"></div>
+      </div>
+      <div class="metric metric-pending">
+        <div class="metric-title">Pending office days</div>
+        <div class="metric-value" id="pendingOfficeDays"></div>
+      </div>
+      <div class="metric">
+        <div class="metric-title">Raw pending office days</div>
+        <div class="metric-value" id="rawPendingOfficeDays"></div>
+      </div>
+      <div class="metric">
+        <div class="metric-title">Required home days</div>
+        <div class="metric-value" id="homeDays"></div>
+      </div>
+    </div>
+  </div>
+  <div class="small">
+    Rules: nearest whole-number rounding (0.5 up); cap applied only for 60% (max 12) and 80% (max 16).
+  </div>
+  <div class="small">
+    Working days auto-fill from selected month/year (weekdays only) and can still be edited manually.
+  </div>
+  </main>
+  <div class="small signature">
+    made with lots of coffee by
+    <a href="https://github.com/jiteshpathak" target="_blank" rel="noopener noreferrer">jitesh</a> ☕
+  </div>
+
+  <script>
+    function countWeekdaysInMonth(year, month1to12) {
+      let weekdays = 0;
+      const daysInMonth = new Date(year, month1to12, 0).getDate();
+      for (let day = 1; day <= daysInMonth; day++) {
+        const weekday = new Date(year, month1to12 - 1, day).getDay();
+        if (weekday !== 0 && weekday !== 6) weekdays++;
+      }
+      return weekdays;
+    }
+
+    function parseMonthYear(value) {
+      const parts = value.split("-");
+      if (parts.length !== 2) return null;
+      const year = Number(parts[0]);
+      const month = Number(parts[1]);
+      if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) return null;
+      return { year, month };
+    }
+
+    function setWorkingDaysFromMonth() {
+      const monthInput = document.getElementById("monthYear");
+      const workingDaysInput = document.getElementById("workingDays");
+      const parsed = parseMonthYear(monthInput.value);
+      if (!parsed) return;
+      workingDaysInput.value = countWeekdaysInMonth(parsed.year, parsed.month);
+    }
+
+    function normalizeRate(raw) {
+      return raw > 1 ? raw / 100 : raw;
+    }
+
+    function calculateDays(input) {
+      const absences = input.declaredHolidays + input.leavesApplied + input.btoExemptions;
+      const effectiveWorkingDays = input.workingDays - absences;
+      const rawOfficeDays = effectiveWorkingDays * input.attendanceRate;
+      let officeDays = Math.round(rawOfficeDays);
+
+      if (Math.abs(input.attendanceRate - 0.6) < 1e-9) officeDays = Math.min(officeDays, 12);
+      if (Math.abs(input.attendanceRate - 0.8) < 1e-9) officeDays = Math.min(officeDays, 16);
+
+      officeDays = Math.max(officeDays, 0);
+      const rawPendingOfficeDays = Math.max(rawOfficeDays - input.officeDone, 0);
+      const pendingOfficeDays = Math.max(officeDays - input.officeDone, 0);
+      const homeDays = Math.max(effectiveWorkingDays - officeDays, 0);
+
+      return {
+        effectiveWorkingDays,
+        officeDays,
+        rawOfficeDays,
+        pendingOfficeDays,
+        rawPendingOfficeDays,
+        homeDays
+      };
+    }
+
+    function readNumber(form, name) {
+      return Number(form.elements[name].value);
+    }
+
+    function validate(input) {
+      const fields = ["workingDays", "declaredHolidays", "leavesApplied", "btoExemptions", "attendanceRate", "officeDone"];
+      for (const field of fields) {
+        if (!Number.isFinite(input[field])) return `Invalid value for ${field}.`;
+        if (input[field] < 0) return `${field} cannot be negative.`;
+      }
+      if (input.attendanceRate > 1) return "Attendance rate must be between 0 and 1 (or use 60/80 format).";
+      if (input.workingDays < input.declaredHolidays + input.leavesApplied + input.btoExemptions) {
+        return "Declared holidays + leaves + BTO exemptions cannot exceed working days.";
+      }
+      if (input.officeDone > input.workingDays) return "Work from office done cannot exceed working days.";
+      return "";
+    }
+
+    function render(values) {
+      document.getElementById("effectiveDays").textContent = values.effectiveWorkingDays;
+      document.getElementById("officeDays").textContent = values.officeDays;
+      document.getElementById("rawOfficeDays").textContent = values.rawOfficeDays.toFixed(1);
+      document.getElementById("pendingOfficeDays").textContent = values.pendingOfficeDays;
+      document.getElementById("rawPendingOfficeDays").textContent = values.rawPendingOfficeDays.toFixed(1);
+      document.getElementById("homeDays").textContent = values.homeDays;
+      document.getElementById("result").hidden = false;
+    }
+
+    function setError(message) {
+      document.getElementById("error").textContent = message;
+    }
+
+    document.getElementById("calcForm").addEventListener("submit", function (event) {
+      event.preventDefault();
+      setError("");
+
+      const form = event.currentTarget;
+      if (!form.checkValidity()) {
+        form.reportValidity();
+        document.getElementById("result").hidden = true;
+        return;
+      }
+      const input = {
+        workingDays: readNumber(form, "workingDays"),
+        declaredHolidays: readNumber(form, "declaredHolidays"),
+        leavesApplied: readNumber(form, "leavesApplied"),
+        btoExemptions: readNumber(form, "btoExemptions"),
+        officeDone: readNumber(form, "officeDone"),
+        // ponytail: keep input manual and local; add HR-system integration only if requested.
+        attendanceRate: normalizeRate(readNumber(form, "attendanceRate"))
+      };
+
+      const error = validate(input);
+      if (error) {
+        document.getElementById("result").hidden = true;
+        setError(error);
+        return;
+      }
+
+      render(calculateDays(input));
+    });
+
+    function demoSelfCheck() {
+      console.assert(countWeekdaysInMonth(2021, 2) === 20, "Expected Feb 2021 weekdays=20");
+      const almostEqual = (a, b, eps = 1e-9) => Math.abs(a - b) < eps;
+
+      const a = calculateDays({
+        workingDays: 23, declaredHolidays: 1, leavesApplied: 2, btoExemptions: 1, officeDone: 4, attendanceRate: 0.6
+      });
+      console.assert(a.effectiveWorkingDays === 19, "Expected effectiveWorkingDays=19");
+      console.assert(a.officeDays === 11, "Expected officeDays=11 for 60%");
+      console.assert(almostEqual(a.rawPendingOfficeDays, 6.8), "Expected rawPendingOfficeDays=6.8");
+      console.assert(a.pendingOfficeDays === 7, "Expected pendingOfficeDays=7");
+      console.assert(a.homeDays === 8, "Expected homeDays=8 for 60%");
+
+      const b = calculateDays({
+        workingDays: 23, declaredHolidays: 1, leavesApplied: 2, btoExemptions: 1, officeDone: 4, attendanceRate: 0.8
+      });
+      console.assert(b.officeDays === 15, "Expected officeDays=15 for 80%");
+      console.assert(b.pendingOfficeDays === 11, "Expected pendingOfficeDays=11");
+      console.assert(b.homeDays === 4, "Expected homeDays=4 for 80%");
+    }
+
+    const monthYearInput = document.getElementById("monthYear");
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, "0");
+    monthYearInput.value = `${yyyy}-${mm}`;
+    setWorkingDaysFromMonth();
+    monthYearInput.addEventListener("change", setWorkingDaysFromMonth);
+    document.getElementById("recalcWorkingDays").addEventListener("click", setWorkingDaysFromMonth);
+
+    demoSelfCheck();
+  </script>
+</body>
+</html>
